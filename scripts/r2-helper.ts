@@ -1,10 +1,6 @@
 "use server";
 
-import {
-  HeadObjectCommand,
-  ListObjectsV2Command,
-  S3Client,
-} from "@aws-sdk/client-s3";
+import { HeadObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 function assertEnv(name: string): string {
   const value = process.env[name];
