@@ -1,7 +1,7 @@
 import ResetPasswordForm from "@/components/forms/reset-password-form";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import { Suspense } from "react";
 
 const Page = () => {
   return (
@@ -22,7 +22,9 @@ const Page = () => {
           </div>
           Better Auth Starter
         </Link>
-        <ResetPasswordForm />
+        <Suspense fallback={<div>Loading...</div>}>
+          <ResetPasswordForm />
+        </Suspense>
       </div>
     </div>
   );
