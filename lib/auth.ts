@@ -48,7 +48,7 @@ export const auth = betterAuth({
       create: {
         before: async (session) => {
           const activeOrganization = await getActiveOrganization(
-            session.userId
+            session.userId,
           );
           return {
             data: {
@@ -86,5 +86,10 @@ export const auth = betterAuth({
     }),
     lastLoginMethod(),
     nextCookies(),
+  ],
+  trustedOrigins: [
+    "http://localhost:3000",
+    "https://www.nixarif.com",
+    "https://nixarif.com",
   ],
 });
