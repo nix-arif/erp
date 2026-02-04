@@ -50,14 +50,14 @@ let data: AppData = {
           title: "Catalogue",
           url: "/dashboard/product/catalogue",
         },
-        {
-          title: "Seed Excel",
-          url: "/dashboard/product/seed-excel",
-        },
-        {
-          title: "Seed Data",
-          url: "/dashboard/product/seed-data",
-        },
+        // {
+        //   title: "Seed Excel",
+        //   url: "/dashboard/product/seed-excel",
+        // },
+        // {
+        //   title: "Seed Data",
+        //   url: "/dashboard/product/seed-data",
+        // },
       ],
     },
     // {
