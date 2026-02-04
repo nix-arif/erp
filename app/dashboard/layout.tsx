@@ -54,10 +54,10 @@ let data: AppData = {
           title: "Seed Excel",
           url: "/dashboard/product/seed-excel",
         },
-        // {
-        //   title: "Settings",
-        //   url: "#",
-        // },
+        {
+          title: "Seed Data",
+          url: "/dashboard/product/seed-data",
+        },
       ],
     },
     // {

@@ -5,7 +5,9 @@ import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import * as XLSX from "xlsx";
-import { getProductImages } from "@/scripts/r2-helper";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
 import {
   Card,
   CardHeader,
@@ -14,113 +16,247 @@ import {
   CardContent,
   CardFooter,
 } from "../ui/card";
-import { Field, FieldLabel, FieldGroup, FieldError } from "../ui/field";
 import { Input } from "../ui/input";
 import { Button } from "../ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileDown } from "lucide-react";
+import { getProductsForCatalogue } from "@/scripts/product-database";
+import { toast } from "sonner";
 import CatalogueTable from "../table/catalogue-table";
 
-interface Product {
+/* ================= TYPES ================= */
+
+interface ProductView {
   no: number;
   productCode: string;
   description: string | null;
-  productImageUrl: string | null;
+  imageUrl: string | null;
 }
 
-const ACCEPTED_TYPES = [
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.oasis.opendocument.spreadsheet",
-];
+/* ================= CONFIG ================= */
+
+const ROWS_PER_CHUNK = 50;
+const MAX_IMAGES = 100;
 
 const formSchema = z.object({
   file: z
     .instanceof(File)
-    .refine((file) => ACCEPTED_TYPES.includes(file.type), {
-      message: "File must be .ods or .xlsx",
-    }),
+    .refine((file) => file.size > 0, { message: "Pilih fail Excel" }),
 });
+
+/* ================= COMPONENT ================= */
 
 export const GenerateCatalogueForm = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [productDetails, setProductDetails] = useState<Product[]>([]);
+  const [fileInputKey, setFileInputKey] = useState(Date.now());
+  const [productDetails, setProductDetails] = useState<ProductView[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
   });
 
-  const onSubmit = async (values: z.infer<typeof formSchema>) => {
-    setIsLoading(true);
-    const file = values.file;
-    if (!file) return;
+  /* ========== IMAGE PRELOADER ========== */
+  const preloadImages = async (
+    data: ProductView[],
+  ): Promise<Map<string, HTMLImageElement | null>> => {
+    const promises: Promise<[string, HTMLImageElement | null]>[] = data.map(
+      (item) =>
+        new Promise((resolve) => {
+          if (!item.imageUrl) {
+            resolve([item.productCode, null]);
+            return;
+          }
 
-    // Read Excel file
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer);
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, {
-      defval: "",
-    });
+          const img = new Image();
+          img.crossOrigin = "Anonymous"; // 🔹 important for addImage
+          img.src = item.imageUrl;
+          img.onload = () => resolve([item.productCode, img]);
+          img.onerror = () => resolve([item.productCode, null]);
+        }),
+    );
 
-    const products = rows.map((row) => {
-      return {
-        no: row["no"],
-        productCode: row["product code"],
-      };
-    });
-
-    const results = await getProductImages(products);
-
-    setProductDetails(results);
-
-    setIsLoading(false);
+    return new Map(await Promise.all(promises));
   };
 
+  /* ================= SUBMIT ================= */
+
+  const onSubmit = async (values: z.infer<typeof formSchema>) => {
+    const toastId = toast.loading("Processing PDF...");
+    setIsLoading(true);
+
+    try {
+      // Read Excel
+      const buffer = await values.file.arrayBuffer();
+      const workbook = XLSX.read(buffer);
+      const rows = XLSX.utils.sheet_to_json<any>(
+        workbook.Sheets[workbook.SheetNames[0]],
+        { defval: "" },
+      );
+
+      const excelData = rows
+        .filter((r) => r["product code"])
+        .map((row, index) => ({
+          no: Number(row["no"]) || index + 1,
+          productCode: String(row["product code"]).trim(),
+        }));
+
+      const result = await getProductsForCatalogue(excelData);
+      if (!result.success || !result.data) {
+        throw new Error("Gagal mendapatkan data produk");
+      }
+
+      setProductDetails(result.data);
+
+      const finalData: ProductView[] = result.data;
+      const imageMap = await preloadImages(finalData); // preload all images
+
+      const doc = new jsPDF();
+
+      // Chunking for large datasets
+      for (let i = 0; i < finalData.length; i += ROWS_PER_CHUNK) {
+        const chunk = finalData.slice(i, i + ROWS_PER_CHUNK);
+
+        if (i !== 0) doc.addPage();
+
+        autoTable(doc, {
+          startY: 20,
+          head: [["No", "Product Code", "Description", "Image"]],
+          margin: { left: 10, right: 5 },
+
+          // embed stable row index
+          body: chunk.map((p, idx) => ({
+            __rowIndex__: idx,
+            no: p.no,
+            productCode: p.productCode,
+            description: p.description ?? "",
+            __image__: "",
+          })),
+
+          columns: [
+            { dataKey: "no" },
+            { dataKey: "productCode" },
+            { dataKey: "description" },
+            { dataKey: "__image__" },
+          ],
+
+          columnStyles: {
+            no: { cellWidth: 10, halign: "center" },
+            productCode: { cellWidth: 30, halign: "center" },
+            description: { cellWidth: 60 },
+            __image__: { cellWidth: 90, halign: "center" }, // 🔹 wider image column
+          },
+
+          styles: {
+            fontSize: 8, // smaller font
+            cellPadding: 2, // reduced padding
+            minCellHeight: 50, // enough height for image
+            valign: "middle",
+            lineWidth: 0.3,
+          },
+
+          // 🔹 smaller header height
+          headStyles: {
+            fontSize: 8, // smaller font for header
+            cellPadding: 1.5, // smaller padding for header
+            minCellHeight: 12, // reduce header row height
+            valign: "middle",
+            halign: "center",
+          },
+
+          didDrawCell: (data) => {
+            if (data.section !== "body") return;
+            if (data.column.dataKey !== "__image__") return;
+
+            const raw = data.row.raw as any;
+            const rowIndex = raw?.__rowIndex__;
+            if (typeof rowIndex !== "number") return;
+
+            const product = chunk[rowIndex];
+            if (!product) return;
+
+            const img = imageMap.get(product.productCode);
+
+            const padding = 2;
+            const maxW = data.cell.width - padding * 2;
+            const maxH = data.cell.height - padding * 2;
+
+            if (img) {
+              // draw image
+              const ratio = Math.min(maxW / img.width, maxH / img.height);
+              const w = img.width * ratio;
+              const h = img.height * ratio;
+              const x = data.cell.x + (data.cell.width - w) / 2;
+              const y = data.cell.y + (data.cell.height - h) / 2;
+              doc.addImage(img, "JPEG", x, y, w, h);
+            } else {
+              // no image → tulis "No Image" di tengah cell
+              doc.setFontSize(8);
+              doc.text(
+                "No Image",
+                data.cell.x + data.cell.width / 2,
+                data.cell.y + data.cell.height / 2,
+                { align: "center", baseline: "middle" },
+              );
+            }
+          },
+        });
+      }
+
+      doc.save(`Catalogue_${Date.now()}.pdf`);
+      toast.success("PDF Downloaded!", { id: toastId });
+    } catch (err: any) {
+      console.error(err);
+      toast.error(err.message || "Error occurred", { id: toastId });
+    } finally {
+      setIsLoading(false);
+      setFileInputKey(Date.now());
+    }
+  };
+
+  /* ================= UI ================= */
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="mx-auto mt-10">
       <Card>
-        <CardHeader className="text-center">
-          <CardTitle>Create Catalogue</CardTitle>
-          <CardDescription>Upload a .ods or .xlsx file</CardDescription>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileDown /> Catalogue Generator
+          </CardTitle>
+          <CardDescription>
+            Optimized for large Excel files (10k–20k rows)
+          </CardDescription>
         </CardHeader>
 
         <CardContent>
-          <form onSubmit={form.handleSubmit(onSubmit)}>
-            <FieldGroup>
-              <Controller
-                name="file"
-                control={form.control}
-                render={({ field, fieldState }) => (
-                  <Field data-invalid={fieldState.invalid}>
-                    <FieldLabel htmlFor="file">File</FieldLabel>
-                    <Input
-                      id="file"
-                      type="file"
-                      accept=".xlsx,.ods"
-                      onChange={(e) => field.onChange(e.target.files?.[0])}
-                      onBlur={field.onBlur}
-                      ref={field.ref}
-                    />
-                    {fieldState.invalid && (
-                      <FieldError errors={[fieldState.error]} />
-                    )}
-                  </Field>
-                )}
-              />
-            </FieldGroup>
-            <Button type="submit" className="mt-4" disabled={isLoading}>
-              {isLoading ? (
-                <div className="flex items-center gap-2">
-                  <span>Loading</span>
-                  <Loader2 className="animate-spin size-4" />
-                </div>
-              ) : (
-                "Generate"
+          <form onSubmit={form.handleSubmit(onSubmit)} id="pdf-form">
+            <Controller
+              name="file"
+              control={form.control}
+              render={({ field }) => (
+                <Input
+                  key={fileInputKey}
+                  type="file"
+                  accept=".xlsx,.ods"
+                  onChange={(e) => field.onChange(e.target.files?.[0])}
+                />
               )}
-            </Button>
+            />
           </form>
         </CardContent>
+
+        <CardFooter>
+          <Button
+            type="submit"
+            form="pdf-form"
+            disabled={isLoading}
+            className="w-full"
+          >
+            {isLoading && <Loader2 className="animate-spin mr-2" />}
+            Generate PDF
+          </Button>
+        </CardFooter>
       </Card>
 
+      {/* Optional table preview */}
       <CatalogueTable products={productDetails} />
     </div>
   );

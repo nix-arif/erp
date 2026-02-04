@@ -58,7 +58,7 @@ interface Product {
   no: number;
   productCode: string;
   description: string | null;
-  productImageUrl: string | null;
+  imageUrl: string | null;
 }
 
 interface CatalogueTableProps {
@@ -81,7 +81,7 @@ function CatalogueTable({ products }: CatalogueTableProps) {
         {products.map((product, i) => (
           <TableRow
             key={i}
-            className={`${product.productImageUrl ? "" : "bg-red-400"}`}
+            className={`${product.imageUrl ? "" : "bg-red-400"}`}
           >
             <TableCell className="font-medium">{product.no}</TableCell>
             <TableCell>{product.productCode}</TableCell>
@@ -89,7 +89,7 @@ function CatalogueTable({ products }: CatalogueTableProps) {
               {product.description ? product.description : "No Product"}
             </TableCell>
             <TableCell>
-              {product.productImageUrl ? product.productImageUrl : "No Image"}
+              {product.imageUrl ? product.imageUrl : "No Image"}
             </TableCell>
           </TableRow>
         ))}
