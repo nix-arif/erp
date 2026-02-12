@@ -2,6 +2,7 @@
 
 import { db } from "@/db/drizzle";
 import { product } from "@/db/schema";
+import { sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { revalidatePath } from "next/cache";
 
@@ -15,6 +16,7 @@ interface Product {
 }
 
 export async function seedToDatabase(data: Product[]) {
+  console.log(data);
   try {
     if (!data || data.length === 0) {
       return { success: false, message: "No data found" };
@@ -36,10 +38,11 @@ export async function seedToDatabase(data: Product[]) {
       .onConflictDoUpdate({
         target: product.productCode,
         set: {
-          description: product.description,
-          oum: product.oum,
-          unitPrice: product.unitPrice,
-          imageUrl: product.imageUrl,
+          brand: sql`excluded.brand`,
+          description: sql`excluded.description`,
+          oum: sql`excluded.oum`,
+          unitPrice: sql`excluded.unit_price`,
+          imageUrl: sql`excluded.image`,
         },
       });
 

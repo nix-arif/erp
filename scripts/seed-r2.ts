@@ -24,16 +24,22 @@ async function uploadImages() {
     const fullPath = path.join(EXTERNAL_IMAGE_DIR, file);
     const buffer = fs.readFileSync(fullPath);
 
+    const normalizedFileName = normalizeFileName(file);
+
     const command = new PutObjectCommand({
       Bucket: BUCKET,
       Key: file,
       Body: buffer,
-      ContentType: getMimeType(file),
+      ContentType: getMimeType(normalizedFileName),
     });
 
     await s3.send(command);
     console.log(`✅ Uploaded: ${file}`);
   }
+}
+
+function normalizeFileName(fileName: string): string {
+  return fileName.replace(/\.jpeg$/i, ".jpg");
 }
 
 function getMimeType(fileName: string): string {

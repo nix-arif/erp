@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "seed:r2": "tsx scripts/seed-r2.ts"
+    "seed:r2": "tsx scripts/seed-r2.ts",
+    "delete:r2:productimages": "tsx scripts/delete-all-image-r2.ts",
+    "delete:jpeg": "tsx scripts/delete-jpeg.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.978.0",

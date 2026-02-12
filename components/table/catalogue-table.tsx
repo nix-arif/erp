@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Table,
   TableBody,
@@ -8,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useEffect, useState } from "react";
 
 interface Product {
   no: number;
@@ -32,23 +35,45 @@ function CatalogueTable({ products }: CatalogueTableProps) {
           <TableHead>Image</TableHead>
         </TableRow>
       </TableHeader>
+
       <TableBody>
-        {products.map((product, i) => (
-          <TableRow
-            key={i}
-            className={`${product.imageUrl ? "" : "bg-red-400"}`}
-          >
-            <TableCell className="font-medium">{product.no}</TableCell>
-            <TableCell>{product.productCode}</TableCell>
-            <TableCell>
-              {product.description ? product.description : "No Product"}
-            </TableCell>
-            <TableCell>{product.imageUrl ? "Yes" : "No Image"}</TableCell>
-          </TableRow>
+        {products.map((product) => (
+          <ImageCheckRow key={product.no} product={product} />
         ))}
       </TableBody>
-      <TableFooter></TableFooter>
+
+      <TableFooter />
     </Table>
+  );
+}
+
+function ImageCheckRow({ product }: { product: Product }) {
+  const [imageExists, setImageExists] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!product.imageUrl) {
+      setImageExists(false);
+      return;
+    }
+
+    const img = new Image();
+    img.src = product.imageUrl;
+
+    img.onload = () => setImageExists(true);
+    img.onerror = () => setImageExists(false);
+  }, [product.imageUrl]);
+
+  return (
+    <TableRow className={imageExists === false ? "bg-red-400" : ""}>
+      <TableCell className="font-medium">{product.no}</TableCell>
+      <TableCell>{product.productCode}</TableCell>
+      <TableCell>{product.description ?? "No Product"}</TableCell>
+      <TableCell>
+        {imageExists === null && "Checking..."}
+        {imageExists === true && "Yes"}
+        {imageExists === false && "No Image"}
+      </TableCell>
+    </TableRow>
   );
 }
 

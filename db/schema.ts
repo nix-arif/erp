@@ -137,7 +137,7 @@ export const product = pgTable(
   {
     id: text("id").primaryKey(),
     brand: varchar("brand", { length: 20 }).notNull(),
-    productCode: varchar("product_code", { length: 20 }).notNull(),
+    productCode: varchar("product_code", { length: 20 }).unique().notNull(),
     description: text("description").notNull(),
     oum: varchar("oum", { length: 10 }).notNull(),
     unitPrice: doublePrecision("unit_price").default(0).notNull(),

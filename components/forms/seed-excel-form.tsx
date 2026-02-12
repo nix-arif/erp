@@ -40,6 +40,19 @@ const formSchema = z.object({
     }),
 });
 
+const constructCompleteProductData = (product: Product) => {
+  const productCode = product.productCode.replace("/", ":");
+  const key = `${productCode}.jpg`;
+  return {
+    no: product.no,
+    productCode: product.productCode,
+    description: product.description,
+    oum: product.oum,
+    unitPrice: product.unitPrice ?? 0,
+    productImageUrl: `/${encodeURIComponent(key)}`,
+  };
+};
+
 const SeedExcelForm = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [productDetails, setProductDetails] = useState<Product[]>([]);
@@ -73,7 +86,13 @@ const SeedExcelForm = () => {
         };
       });
 
-      const newData = await getProductImagesUrl(products);
+      console.log(products);
+
+      // const productCode = item.productCode.replaceAll("/", ":");
+
+      const newData = products.map((product) =>
+        constructCompleteProductData({ ...product, productImageUrl: "" }),
+      );
 
       const newSheet = XLSX.utils.json_to_sheet(newData);
       XLSX.utils.json_to_sheet(newData);

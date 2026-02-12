@@ -162,6 +162,42 @@ export const GenerateCatalogueForm = () => {
             halign: "center",
           },
 
+          // didDrawCell: (data) => {
+          //   if (data.section !== "body") return;
+          //   if (data.column.dataKey !== "__image__") return;
+
+          //   const raw = data.row.raw as any;
+          //   const rowIndex = raw?.__rowIndex__;
+          //   if (typeof rowIndex !== "number") return;
+
+          //   const product = chunk[rowIndex];
+          //   if (!product) return;
+
+          //   const img = imageMap.get(product.productCode);
+
+          //   const padding = 2;
+          //   const maxW = data.cell.width - padding * 2;
+          //   const maxH = data.cell.height - padding * 2;
+
+          //   if (img) {
+          //     // draw image
+          //     const ratio = Math.min(maxW / img.width, maxH / img.height);
+          //     const w = img.width * ratio;
+          //     const h = img.height * ratio;
+          //     const x = data.cell.x + (data.cell.width - w) / 2;
+          //     const y = data.cell.y + (data.cell.height - h) / 2;
+          //     doc.addImage(img, "JPEG", x, y, w, h);
+          //   } else {
+          //     // no image → tulis "No Image" di tengah cell
+          //     doc.setFontSize(8);
+          //     doc.text(
+          //       "No Image",
+          //       data.cell.x + data.cell.width / 2,
+          //       data.cell.y + data.cell.height / 2,
+          //       { align: "center", baseline: "middle" },
+          //     );
+          //   }
+          // },
           didDrawCell: (data) => {
             if (data.section !== "body") return;
             if (data.column.dataKey !== "__image__") return;
@@ -179,24 +215,36 @@ export const GenerateCatalogueForm = () => {
             const maxW = data.cell.width - padding * 2;
             const maxH = data.cell.height - padding * 2;
 
-            if (img) {
-              // draw image
-              const ratio = Math.min(maxW / img.width, maxH / img.height);
-              const w = img.width * ratio;
-              const h = img.height * ratio;
-              const x = data.cell.x + (data.cell.width - w) / 2;
-              const y = data.cell.y + (data.cell.height - h) / 2;
-              doc.addImage(img, "JPEG", x, y, w, h);
-            } else {
-              // no image → tulis "No Image" di tengah cell
-              doc.setFontSize(8);
-              doc.text(
-                "No Image",
-                data.cell.x + data.cell.width / 2,
-                data.cell.y + data.cell.height / 2,
-                { align: "center", baseline: "middle" },
-              );
+            const centerX = data.cell.x + data.cell.width / 2;
+            const centerY = data.cell.y + data.cell.height / 2;
+
+            // 🔥 IF IMAGE VALID
+            if (img && img.width && img.height) {
+              try {
+                const ratio = Math.min(maxW / img.width, maxH / img.height);
+                const w = img.width * ratio;
+                const h = img.height * ratio;
+                const x = data.cell.x + (data.cell.width - w) / 2;
+                const y = data.cell.y + (data.cell.height - h) / 2;
+
+                // auto detect format
+                const format = product.imageUrl?.toLowerCase().includes(".png")
+                  ? "PNG"
+                  : "JPEG";
+
+                doc.addImage(img, format, x, y, w, h);
+                return;
+              } catch (err) {
+                console.warn("Image draw failed:", product.productCode);
+              }
             }
+
+            // 🔥 FALLBACK → No Image
+            doc.setFontSize(8);
+            doc.text("No Image", centerX, centerY, {
+              align: "center",
+              baseline: "middle",
+            });
           },
         });
       }

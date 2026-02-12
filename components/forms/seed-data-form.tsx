@@ -19,6 +19,7 @@ import { Button } from "../ui/button";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { seedToDatabase } from "@/scripts/seed-pg";
+import dotenv from "dotenv";
 
 interface Product {
   brand: string;
@@ -43,6 +44,7 @@ const formSchema = z.object({
 });
 
 const SeedDataForm = () => {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
   const [isLoading, setIsLoading] = useState(false);
   const [productDetails, setProductDetails] = useState<Product[]>([]);
 
@@ -80,7 +82,7 @@ const SeedDataForm = () => {
         description: row["description"],
         oum: row["oum"],
         unitPrice: row["unitPrice"],
-        imageUrl: row["productImageUrl"],
+        imageUrl: `${baseUrl}${row["productImageUrl"]}`,
       };
     });
 
