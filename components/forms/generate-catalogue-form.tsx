@@ -305,7 +305,7 @@ export const GenerateCatalogueForm = () => {
       </Card>
 
       {/* Optional table preview */}
-      <CatalogueTable products={productDetails} />
+      {/* <CatalogueTable products={productDetails} /> */}
     </div>
   );
 };

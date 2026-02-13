@@ -10,6 +10,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+
 import { useEffect, useState } from "react";
 
 interface Product {
@@ -19,17 +20,45 @@ interface Product {
   imageUrl: string | null;
 }
 
-interface CatalogueTableProps {
+interface Props {
   products: Product[];
 }
 
-function CatalogueTable({ products }: CatalogueTableProps) {
+export default function CatalogueTable({ products }: Props) {
+  const [statusMap, setStatusMap] = useState<Record<string, boolean>>({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkImages = async () => {
+      setLoading(true);
+
+      const res = await fetch("/api/check-images", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ products }),
+      });
+
+      const data = await res.json();
+
+      // 🔥 update sekali sahaja
+      setStatusMap(data);
+      setLoading(false);
+    };
+
+    if (products.length > 0) {
+      checkImages();
+    }
+  }, [products]);
+
   return (
     <Table>
       <TableCaption>Product Detail Table</TableCaption>
+
       <TableHeader>
         <TableRow>
-          <TableHead className="w-2.5">No</TableHead>
+          <TableHead>No</TableHead>
           <TableHead>Product Code</TableHead>
           <TableHead>Description</TableHead>
           <TableHead>Image</TableHead>
@@ -37,44 +66,26 @@ function CatalogueTable({ products }: CatalogueTableProps) {
       </TableHeader>
 
       <TableBody>
-        {products.map((product) => (
-          <ImageCheckRow key={product.no} product={product} />
-        ))}
+        {products.map((product) => {
+          const exists = statusMap[product.productCode];
+
+          return (
+            <TableRow
+              key={product.productCode}
+              className={exists === false ? "bg-red-400" : ""}
+            >
+              <TableCell>{product.no}</TableCell>
+              <TableCell>{product.productCode}</TableCell>
+              <TableCell>{product.description ?? "No Product"}</TableCell>
+              <TableCell>
+                {loading ? "Checking..." : exists ? "Yes" : "No Image"}
+              </TableCell>
+            </TableRow>
+          );
+        })}
       </TableBody>
 
       <TableFooter />
     </Table>
   );
 }
-
-function ImageCheckRow({ product }: { product: Product }) {
-  const [imageExists, setImageExists] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    if (!product.imageUrl) {
-      setImageExists(false);
-      return;
-    }
-
-    const img = new Image();
-    img.src = product.imageUrl;
-
-    img.onload = () => setImageExists(true);
-    img.onerror = () => setImageExists(false);
-  }, [product.imageUrl]);
-
-  return (
-    <TableRow className={imageExists === false ? "bg-red-400" : ""}>
-      <TableCell className="font-medium">{product.no}</TableCell>
-      <TableCell>{product.productCode}</TableCell>
-      <TableCell>{product.description ?? "No Product"}</TableCell>
-      <TableCell>
-        {imageExists === null && "Checking..."}
-        {imageExists === true && "Yes"}
-        {imageExists === false && "No Image"}
-      </TableCell>
-    </TableRow>
-  );
-}
-
-export default CatalogueTable;
